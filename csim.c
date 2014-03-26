@@ -15,36 +15,48 @@
 #include <stdlib.h>
 #include <getopt.h>
 #include <stdbool.h>
+#include <math.h>
 //#include "cachelab.h"
 
 #define OPT_LEN 20
 
-void printUsage();
-bool parseArgs(int argc, char* argv[]);
+typedef unsigned long tag;
 
-bool h = false;
-bool v = false;
-int s = -1;
-int E = -1;
-int b = -1;
-char* t = NULL;
+typedef struct
+{
+  int numSets;
+  int setIndexBits;
+  int linesPerSet; // associativiy
+  int blockSize;
+  int blockOffsetBits;
+  tag** tags;
+} Cache;
+
+void printUsage();
+bool parseArgs(int argc, char* argv[], bool* v, int* s, int* E, int* b,
+    char** t);
+void initCache(Cache* cache, int s, int E, int b);
+void deleteCache(Cache* cache);
 
 int main(int argc, char * argv[])
 {
-  if (!parseArgs(argc, argv))
+  bool v = false;
+  int s = -1;
+  int E = -1;
+  int b = -1;
+  char* t = NULL;
+
+  if (!parseArgs(argc, argv, &v, &s, &E, &b, &t))
   {
     printUsage();
     return 1;
   }
 
- 
-  printf("v = %d\n", v);
-  printf("s = %d, b = %d, E = %d\n", s, b, E);
-  printf("t = %s\n", t);
-
+  Cache cache;
+  initCache(&cache, s, E, b);
+  deleteCache(&cache);
 
   return 0;
-
 }
 
 void printUsage()
@@ -59,7 +71,8 @@ void printUsage()
   printf("%s\n\n", "-t <tracefile>: Name of the valgrind trace to replay.");
 }
 
-bool parseArgs(int argc, char* argv[])
+bool parseArgs(int argc, char* argv[], bool* v, int* s, int* E, int* b,
+    char** t)
 {
   if(argc < 2)
   {
@@ -72,23 +85,23 @@ bool parseArgs(int argc, char* argv[])
     switch(c)
     {
       case 'v':
-        v = true;
+        *v = true;
         break;
 
       case 's':
-        s = atoi(optarg);
+        *s = atoi(optarg);
         break;
 
       case 'b':
-        b = atoi(optarg);
+        *b = atoi(optarg);
         break;
 
       case 'E':
-        E = atoi(optarg);
+        *E = atoi(optarg);
         break;
 
       case 't':
-        t = optarg;
+        *t = optarg;
         break;
 
       case '?':
@@ -106,11 +119,38 @@ bool parseArgs(int argc, char* argv[])
     }
   }
 
-  if(s <= 0 || b <= 0 || E <= 0 || t == NULL)
+  if(*s <= 0 || *b <= 0 || *E <= 0 || *t == NULL)
   {
     printf("Error: missing required arguments\n");
     return false;
   }
 
   return true;
+}
+
+
+void initCache(Cache* cache, int s, int E, int b)
+{
+  cache->numSets = pow(2, s);
+  cache->setIndexBits = s;
+  cache->linesPerSet = E;
+  cache->blockSize = pow(2, b);
+  cache->blockOffsetBits = b;
+  
+  cache->tags = malloc(cache->numSets * sizeof(tag*));
+  for (int i = 0; i < cache->numSets; i++)
+  {
+    cache->tags[i] = malloc(cache->linesPerSet * sizeof(tag));
+  }
+}
+
+void deleteCache(Cache* cache)
+{
+  for (int i = 0; i < cache->numSets; i++)
+  {
+    free(cache->tags[i]);
+    cache->tags[i] = NULL;
+  }
+  free(cache->tags);
+  cache->tags = NULL;
 }
