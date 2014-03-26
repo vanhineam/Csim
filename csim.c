@@ -16,9 +16,11 @@
 #include <getopt.h>
 #include <stdbool.h>
 #include <math.h>
+#include <string.h>
 //#include "cachelab.h"
 
 #define OPT_LEN 20
+#define BUFF_SIZE 80
 
 typedef unsigned long tag;
 
@@ -37,6 +39,7 @@ bool parseArgs(int argc, char* argv[], bool* v, int* s, int* E, int* b,
     char** t);
 void initCache(Cache* cache, int s, int E, int b);
 void deleteCache(Cache* cache);
+void simulateCache(Cache* cache, FILE* fp);
 
 int main(int argc, char * argv[])
 {
@@ -54,8 +57,16 @@ int main(int argc, char * argv[])
 
   Cache cache;
   initCache(&cache, s, E, b);
-  deleteCache(&cache);
 
+  FILE * fp = fopen(t, "r");
+
+  if(fp != NULL)
+  {
+    simulateCache(&cache, fp);
+  }
+
+  fclose(fp);
+  deleteCache(&cache);
   return 0;
 }
 
@@ -141,6 +152,7 @@ void initCache(Cache* cache, int s, int E, int b)
   for (int i = 0; i < cache->numSets; i++)
   {
     cache->tags[i] = malloc(cache->linesPerSet * sizeof(tag));
+    memset(cache->tags[i], 0, cache->linesPerSet * sizeof(tag));
   }
 }
 
@@ -153,4 +165,24 @@ void deleteCache(Cache* cache)
   }
   free(cache->tags);
   cache->tags = NULL;
+}
+
+void simulateCache(Cache* cache, FILE* fp)
+{
+  char buff[BUFF_SIZE];
+
+  while(fgets(buff, BUFF_SIZE, fp))
+  {
+    char operation;
+    unsigned long address = 0;
+    int size = 0;
+
+    sscanf(buff, " %c %lx,%d", &operation, &address, &size);
+    printf(" %c %lx,%d\n", operation, address, size);
+
+    if(feof(fp))
+    {
+      break;
+    }
+  }
 }
