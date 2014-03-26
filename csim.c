@@ -14,68 +14,34 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <getopt.h>
+#include <stdbool.h>
 //#include "cachelab.h"
 
 #define OPT_LEN 20
 
 void printUsage();
+bool parseArgs(int argc, char* argv[]);
+
+bool h = false;
+bool v = false;
+int s = -1;
+int E = -1;
+int b = -1;
+char* t = NULL;
 
 int main(int argc, char * argv[])
 {
-  // Create the set, block, and associativity variables.
-  int s = 0;
-  int b = 0;
-  int E = 0;
-  int c;
-  int index;
-  
-  if(argc < 2)
+  if (!parseArgs(argc, argv))
   {
     printUsage();
     return 1;
   }
-  // Handle command-line arguements.
-  while((c = getopt(argc, argv, "s:b:E:")) != -1)
-  {
-    switch(c)
-    {
-      case 's':
-        s = atoi(optarg);
-        break;
-      case 'b':
-        b = atoi(optarg);
-        break;
-      case 'E':
-        E = atoi(optarg);
-        break;
-      case '?':
-        if(optopt == 's')
-          fprintf(stderr, "option -%c requires an argument \n", optopt);
-        else if(isprint(optopt))
-          fprintf(stderr, "Unkown option '-%c'.\n", optopt);
-        else
-          fprintf(stderr,
-              "Unknown option character '\\x%x'.\n", optopt);
-        return 1;
-      default:
-        printUsage();
-        abort();
-    }
-  }
 
-  if( s == 0 || b == 0 || E == 0)
-  {
-    printf("Error: missing required arguments\n");
-    printUsage();
-    exit(1);
-  }
-  
+ 
+  printf("v = %d\n", v);
   printf("s = %d, b = %d, E = %d\n", s, b, E);
+  printf("t = %s\n", t);
 
-  for(index = optind; index < argc; index++)
-  {
-    printf("Non-option argument %s\n", argv[index]);
-  }
 
   return 0;
 
@@ -93,3 +59,58 @@ void printUsage()
   printf("%s\n\n", "-t <tracefile>: Name of the valgrind trace to replay.");
 }
 
+bool parseArgs(int argc, char* argv[])
+{
+  if(argc < 2)
+  {
+    return false;
+  }
+
+  int c;
+  while((c = getopt(argc, argv, "hvs:b:E:t:")) != -1)
+  {
+    switch(c)
+    {
+      case 'v':
+        v = true;
+        break;
+
+      case 's':
+        s = atoi(optarg);
+        break;
+
+      case 'b':
+        b = atoi(optarg);
+        break;
+
+      case 'E':
+        E = atoi(optarg);
+        break;
+
+      case 't':
+        t = optarg;
+        break;
+
+      case '?':
+        if(optopt == 's')
+          fprintf(stderr, "option -%c requires an argument \n", optopt);
+        else if(isprint(optopt))
+          fprintf(stderr, "Unkown option '-%c'.\n", optopt);
+        else
+          fprintf(stderr,
+              "Unknown option character '\\x%x'.\n", optopt);
+        return false;
+
+      default:
+        return false;
+    }
+  }
+
+  if(s <= 0 || b <= 0 || E <= 0 || t == NULL)
+  {
+    printf("Error: missing required arguments\n");
+    return false;
+  }
+
+  return true;
+}
