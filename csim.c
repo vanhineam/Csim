@@ -40,12 +40,12 @@ bool parseArgs(int argc, char* argv[], int* s, int* E, int* b,
     char** t);
 void initCache(Cache* cache, int s, int E, int b);
 void deleteCache(Cache* cache);
-void simulateCache(Cache* cache, FILE* fp);
+void simulateCache(Cache* cache, FILE* fp, int* hits, int* misses, int* evics);
 unsigned long getBits(int high, int low, unsigned long source);
 
 
 // Verbose flag
-bool v = false;
+bool verbose = false;
 
 int main(int argc, char * argv[])
 {
@@ -53,9 +53,9 @@ int main(int argc, char * argv[])
   int E = -1;
   int b = -1;
   char* t = NULL;
-  //int hits = 0;
-  //int misses = 0;
-  //int evics = 0;
+  int hits = 0;
+  int misses = 0;
+  int evics = 0;
 
   if (!parseArgs(argc, argv, &s, &E, &b, &t))
   {
@@ -70,7 +70,7 @@ int main(int argc, char * argv[])
 
   if(fp != NULL)
   {
-    simulateCache(&cache, fp);
+    simulateCache(&cache, fp, &hits, &misses, &evics);
   }
 
   fclose(fp);
@@ -104,7 +104,7 @@ bool parseArgs(int argc, char* argv[], int* s, int* E, int* b,
     switch(c)
     {
       case 'v':
-        v = true;
+        verbose = true;
         break;
 
       case 's':
@@ -175,10 +175,10 @@ void deleteCache(Cache* cache)
   cache->tags = NULL;
 }
 
-void simulateCache(Cache* cache, FILE* fp)
+void simulateCache(Cache* cache, FILE* fp, int* hits, int* misses, int* evics)
 {
   char buff[BUFF_SIZE];
-  int setBits = 0;
+  //int setBits = 0;
   int tagBits = 0;
   int numOfSetBits = cache->setIndexBits;
   int numOfBlockOffset = cache->blockOffsetBits;
@@ -189,11 +189,32 @@ void simulateCache(Cache* cache, FILE* fp)
 
   while(fgets(buff, BUFF_SIZE, fp))
   {
+    int i,j;
 
     sscanf(buff, " %c %lx,%d", &operation, &address, &size);
     tagBits = getBits(63, numOfBlockOffset + numOfSetBits, address);
-    setBits = getBits(numOfBlockOffset + numOfSetBits - 1,
-      numOfBlockOffset, address);
+    //setBits = getBits(numOfBlockOffset + numOfSetBits - 1,
+      //numOfBlockOffset, address);
+
+    for(i = 0; i < cache->numSets; i++)
+    {
+      for(j = 0; j < cache->linesPerSet; j++)
+      {
+        tag line = cache->tags[i][j];
+
+        printf("%lu\n", line);
+        if(line == -1)
+        {
+          misses++;
+          printf("miss\n");
+        }
+        else if(line == tagBits)
+        {
+          hits++;
+          printf("hit\n");
+        }
+      }
+    }
 
     if(feof(fp))
     {
