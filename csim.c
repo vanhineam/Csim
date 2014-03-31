@@ -160,7 +160,7 @@ void initCache(Cache* cache, int s, int E, int b)
   for (int i = 0; i < cache->numSets; i++)
   {
     cache->tags[i] = malloc(cache->linesPerSet * sizeof(tag));
-    memset(cache->tags[i], -1, cache->linesPerSet * sizeof(tag));
+    memset(cache->tags[i], 0, cache->linesPerSet * sizeof(tag));
   }
 }
 
@@ -200,9 +200,9 @@ void simulateCache(Cache* cache, FILE* fp, int* hits, int* misses, int* evics)
     {
       for(j = 0; j < cache->linesPerSet; j++)
       {
-        tag line = cache->tags[i][j];
+        tag line = -1;
+        line = cache->tags[i][j];
 
-        printf("%lu\n", line);
         if(line == -1)
         {
           misses++;
