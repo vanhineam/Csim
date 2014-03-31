@@ -178,7 +178,7 @@ void deleteCache(Cache* cache)
 void simulateCache(Cache* cache, FILE* fp, int* hits, int* misses, int* evics)
 {
   char buff[BUFF_SIZE];
-  //int setBits = 0;
+  int setBits = 0;
   int tagBits = 0;
   int numOfSetBits = cache->setIndexBits;
   int numOfBlockOffset = cache->blockOffsetBits;
@@ -189,31 +189,59 @@ void simulateCache(Cache* cache, FILE* fp, int* hits, int* misses, int* evics)
 
   while(fgets(buff, BUFF_SIZE, fp))
   {
-    int i,j;
+    int i;
 
     sscanf(buff, " %c %lx,%d", &operation, &address, &size);
     tagBits = getBits(63, numOfBlockOffset + numOfSetBits, address);
-    //setBits = getBits(numOfBlockOffset + numOfSetBits - 1,
-      //numOfBlockOffset, address);
+    setBits = getBits(numOfBlockOffset + numOfSetBits - 1,
+      numOfBlockOffset, address);
 
-    for(i = 0; i < cache->numSets; i++)
+    for(i = 0; i < cache->linesPerSet; i++)
     {
-      for(j = 0; j < cache->linesPerSet; j++)
+      tag line = -1;
+      tag* set = cache->tags[setBits];
+      line = set[i];
+      printf("CurrentLine: %lu    ", line);
+      if(line == -1)
       {
-        tag line = -1;
-        line = cache->tags[i][j];
-
-        if(line == -1)
+        misses++;
+        if(verbose)
         {
-          misses++;
-          printf("miss\n");
-        }
-        else if(line == tagBits)
-        {
-          hits++;
-          printf("hit\n");
+          printf("miss");
         }
       }
+      else if(line == tagBits)
+      {
+        hits++;
+        if(verbose)
+        {
+          printf("hit");
+        }
+      }
+      else
+      {
+        misses++;
+        evics++;
+        if(verbose)
+        {
+          printf("miss eviction");
+        }
+      }
+
+      if(operation == 'M')
+      {
+        hits++;
+        if(verbose)
+        {
+          printf(" hit \n");
+        }
+      }
+      else if(verbose)
+      {
+        printf("\n");
+      }
+
+      set[i] = tagBits;
     }
 
     if(feof(fp))
