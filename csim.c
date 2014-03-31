@@ -1,13 +1,13 @@
 /**
  * File: csim.c
- * 
+ *
  * Name: Adam Van Hine
  * Username: vanhineam
  *
  * Description: Cache simulator that takes a "valgrind" memory trace as input,
  * simulates the hit/miss behavior of a cache memory on this trace, and outputs
  * the total number of hits, misses and evictions.
- * 
+ *
  */
 #include <ctype.h>
 #include <stdio.h>
@@ -21,6 +21,7 @@
 
 #define OPT_LEN 20
 #define BUFF_SIZE 80
+#define BITE_SIZE 63
 
 typedef unsigned long tag;
 
@@ -35,21 +36,28 @@ typedef struct
 } Cache;
 
 void printUsage();
-bool parseArgs(int argc, char* argv[], bool* v, int* s, int* E, int* b,
+bool parseArgs(int argc, char* argv[], int* s, int* E, int* b,
     char** t);
 void initCache(Cache* cache, int s, int E, int b);
 void deleteCache(Cache* cache);
 void simulateCache(Cache* cache, FILE* fp);
+unsigned long getBits(int high, int low, unsigned long source);
+
+
+// Verbose flag
+bool v = false;
 
 int main(int argc, char * argv[])
 {
-  bool v = false;
   int s = -1;
   int E = -1;
   int b = -1;
   char* t = NULL;
+  //int hits = 0;
+  //int misses = 0;
+  //int evics = 0;
 
-  if (!parseArgs(argc, argv, &v, &s, &E, &b, &t))
+  if (!parseArgs(argc, argv, &s, &E, &b, &t))
   {
     printUsage();
     return 1;
@@ -82,7 +90,7 @@ void printUsage()
   printf("%s\n\n", "-t <tracefile>: Name of the valgrind trace to replay.");
 }
 
-bool parseArgs(int argc, char* argv[], bool* v, int* s, int* E, int* b,
+bool parseArgs(int argc, char* argv[], int* s, int* E, int* b,
     char** t)
 {
   if(argc < 2)
@@ -96,7 +104,7 @@ bool parseArgs(int argc, char* argv[], bool* v, int* s, int* E, int* b,
     switch(c)
     {
       case 'v':
-        *v = true;
+        v = true;
         break;
 
       case 's':
@@ -147,12 +155,12 @@ void initCache(Cache* cache, int s, int E, int b)
   cache->linesPerSet = E;
   cache->blockSize = pow(2, b);
   cache->blockOffsetBits = b;
-  
+
   cache->tags = malloc(cache->numSets * sizeof(tag*));
   for (int i = 0; i < cache->numSets; i++)
   {
     cache->tags[i] = malloc(cache->linesPerSet * sizeof(tag));
-    memset(cache->tags[i], 0, cache->linesPerSet * sizeof(tag));
+    memset(cache->tags[i], -1, cache->linesPerSet * sizeof(tag));
   }
 }
 
@@ -170,19 +178,31 @@ void deleteCache(Cache* cache)
 void simulateCache(Cache* cache, FILE* fp)
 {
   char buff[BUFF_SIZE];
+  int setBits = 0;
+  int tagBits = 0;
+  int numOfSetBits = cache->setIndexBits;
+  int numOfBlockOffset = cache->blockOffsetBits;
+
+  char operation;
+  unsigned long address = 0;
+  int size = 0;
 
   while(fgets(buff, BUFF_SIZE, fp))
   {
-    char operation;
-    unsigned long address = 0;
-    int size = 0;
 
     sscanf(buff, " %c %lx,%d", &operation, &address, &size);
-    printf(" %c %lx,%d\n", operation, address, size);
+    tagBits = getBits(63, numOfBlockOffset + numOfSetBits, address);
+    setBits = getBits(numOfBlockOffset + numOfSetBits - 1,
+      numOfBlockOffset, address);
 
     if(feof(fp))
     {
       break;
     }
   }
+}
+
+unsigned long getBits(int high, int low, unsigned long source)
+{
+  return (source << (63 - high)) >> (63 - high + low);
 }
