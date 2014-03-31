@@ -17,7 +17,7 @@
 #include <stdbool.h>
 #include <math.h>
 #include <string.h>
-//#include "cachelab.h"
+#include "cachelab.h"
 
 #define OPT_LEN 20
 #define BUFF_SIZE 80
@@ -42,7 +42,6 @@ void initCache(Cache* cache, int s, int E, int b);
 void deleteCache(Cache* cache);
 void simulateCache(Cache* cache, FILE* fp, int* hits, int* misses, int* evics);
 unsigned long getBits(int high, int low, unsigned long source);
-
 
 // Verbose flag
 bool verbose = false;
@@ -72,6 +71,8 @@ int main(int argc, char * argv[])
   {
     simulateCache(&cache, fp, &hits, &misses, &evics);
   }
+
+  printSummary(hits, misses, evics);
 
   fclose(fp);
   deleteCache(&cache);
@@ -160,7 +161,7 @@ void initCache(Cache* cache, int s, int E, int b)
   for (int i = 0; i < cache->numSets; i++)
   {
     cache->tags[i] = malloc(cache->linesPerSet * sizeof(tag));
-    memset(cache->tags[i], 0, cache->linesPerSet * sizeof(tag));
+    memset(cache->tags[i], -1, cache->linesPerSet * sizeof(tag));
   }
 }
 
@@ -178,70 +179,105 @@ void deleteCache(Cache* cache)
 void simulateCache(Cache* cache, FILE* fp, int* hits, int* misses, int* evics)
 {
   char buff[BUFF_SIZE];
-  int setBits = 0;
-  int tagBits = 0;
   int numOfSetBits = cache->setIndexBits;
   int numOfBlockOffset = cache->blockOffsetBits;
 
-  char operation;
-  unsigned long address = 0;
-  int size = 0;
-
   while(fgets(buff, BUFF_SIZE, fp))
   {
-    int i;
+    if (buff[0] == 'I')
+    {
+      continue;
+    }
 
+    char operation;
+    unsigned long address = 0;
+    int size = 0;
     sscanf(buff, " %c %lx,%d", &operation, &address, &size);
+    
+    unsigned long setBits = 0;
+    unsigned long tagBits = 0;
     tagBits = getBits(63, numOfBlockOffset + numOfSetBits, address);
     setBits = getBits(numOfBlockOffset + numOfSetBits - 1,
       numOfBlockOffset, address);
 
+    if (verbose)
+    {
+      printf("%c %lx,%d ", operation, address, size);
+    }
+
+    int i;
+    bool found = false;
+    tag* set = cache->tags[setBits];
     for(i = 0; i < cache->linesPerSet; i++)
     {
-      tag line = -1;
-      tag* set = cache->tags[setBits];
-      line = set[i];
-      printf("CurrentLine: %lu    ", line);
-      if(line == -1)
+      tag line = set[i];
+      
+      if(line == tagBits)
       {
-        misses++;
-        if(verbose)
-        {
-          printf("miss");
-        }
+        found = true;
+        break;
       }
-      else if(line == tagBits)
+      if (line == -1)
       {
-        hits++;
-        if(verbose)
-        {
-          printf("hit");
-        }
+        break;
       }
-      else
+    }
+    
+    if (found)
+    {
+      (*hits)++;
+      if (verbose)
       {
-        misses++;
-        evics++;
-        if(verbose)
-        {
-          printf("miss eviction");
-        }
+        printf("hit");
       }
 
-      if(operation == 'M')
+      tag accessed = set[i];
+      tag old = set[0];
+      for (int dst = 1; dst <= i; dst++)
       {
-        hits++;
-        if(verbose)
-        {
-          printf(" hit \n");
-        }
+        tag temp = old; 
+        old = set[dst];
+        set[dst] = temp;
       }
-      else if(verbose)
+      set[0] = accessed;
+    }
+    else
+    {
+      (*misses)++;
+      if(verbose)
       {
-        printf("\n");
+        printf("miss");
       }
 
-      set[i] = tagBits;
+      if (set[cache->linesPerSet - 1] != -1)
+      {
+        (*evics)++;
+        printf(" eviction");
+      }
+
+      tag old = set[0];
+      for (int dst = 1; dst < cache->linesPerSet; dst++)
+      {
+        tag temp = old;
+        old = set[dst];
+        set[dst] = temp;
+      }
+
+      set[0] = tagBits;
+    }
+      
+    if (operation == 'M')
+    {
+      (*hits)++;
+      if (verbose)
+      {
+        printf(" hit");
+      }
+    }
+    
+    if(verbose)
+    {
+      printf("\n");
     }
 
     if(feof(fp))
@@ -253,5 +289,10 @@ void simulateCache(Cache* cache, FILE* fp, int* hits, int* misses, int* evics)
 
 unsigned long getBits(int high, int low, unsigned long source)
 {
+  if (high > 63 || high < 0 || low < 0 || low > 63 || low > high)
+  {
+    printf("Invalid getBits input\n");
+  }
   return (source << (63 - high)) >> (63 - high + low);
 }
+
