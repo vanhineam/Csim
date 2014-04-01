@@ -24,38 +24,57 @@ char transpose_submit_desc[] = "Transpose submission";
 #define MIN(X,Y) ((X) < (Y) ? (X) : (Y))
 void transpose_submit(int M, int N, int A[N][M], int B[M][N])
 {
-    /**
     int i, j, k, l;
     int Block = 32;
+    int Block2 = 16;
 
-    for (i = 0; i < N; i += Block) {
-        for (j = 0; j < M; j += Block) {
-            for(k = 0; k < MIN(i + Block, N); k++){
-                for(l = 0; l < MIN(j + Block, M); l++){
-                    B[l][k] = A[k][l];
+    if(M == N)
+    {
+        for (k = 0; k < N; k+= Block) {
+            for (l = 0; l < M; l+= Block) {
+                for(i = k; i < MIN(k+Block, N); i+=4){
+                    for(j = l; j < MIN(l+Block, M); j+=4)
+                    {
+                        B[j][i] = A[i][j];
+                        B[j+1][i] = A[i][j+1];
+                        B[j+2][i] = A[i][j+2];
+                        B[j+3][i] = A[i][j+3];
+
+                        B[j][i+1] = A[i+1][j];
+                        B[j+1][i+1] = A[i+1][j+1];
+                        B[j+2][i+1] = A[i+1][j+2];
+                        B[j+3][i+1] = A[i+1][j+3];
+
+                        B[j][i+2] = A[i+2][j];
+                        B[j+1][i+2] = A[i+2][j+1];
+                        B[j+2][i+2] = A[i+2][j+2];
+                        B[j+3][i+2] = A[i+2][j+3];
+
+                        B[j][i+3] = A[i+3][j];
+                        B[j+1][i+3] = A[i+3][j+1];
+                        B[j+2][i+3] = A[i+3][j+2];
+                        B[j+3][i+3] = A[i+3][j+3];
+                    }
                 }
             }
         }
     }
-    **/
-    int i, j;
-    const int dim1 = (M/4) * 4;
-
-    for(i = 0; i < N; i++)
+    else
     {
-        for(j = 0; j < dim1; j += 4)
+        for(i = 0; i < N; i+=Block2)
         {
-            B[j*N + i] =       A[i*N + j];
-            B[(j+1) * N + i] = A[i*N + (j+1)];
-            B[(j+2) * N + i] = A[i*N + (j+2)];
-            B[(j+3) * N + i] = A[i*N + (j+3)];
-        }
-        for(; j < N; j++)
-        {
-            B[j*N + i] = A[i*N + j];
+            for(j = 0; j < M; j += Block2)
+            {
+                for(k = i; k < MIN(i+Block2, N); k++)
+                {
+                    for(l = j; l < MIN(j+Block2, M); l++)
+                    {
+                        B[l][k] = A[k][l];
+                    }
+                }
+            }
         }
     }
-
 }
 
 /*
