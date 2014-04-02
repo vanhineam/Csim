@@ -1,8 +1,8 @@
 /**
  * File: csim.c
  *
- * Name: Adam Van Hine
- * Username: vanhineam
+ * Name: Adam Van Hine, Michael Crawford
+ * Username: vanhineam, crawfordmb
  *
  * Description: Cache simulator that takes a "valgrind" memory trace as input,
  * simulates the hit/miss behavior of a cache memory on this trace, and outputs
@@ -25,6 +25,7 @@
 
 typedef unsigned long tag;
 
+// The cache struct
 typedef struct
 {
   int numSets;
@@ -79,6 +80,9 @@ int main(int argc, char * argv[])
   return 0;
 }
 
+/***
+ * Print usage prints the proper usage of the Csim program
+ */
 void printUsage()
 {
   printf("%s\n\n", "Usage: ./csim [-hv] -s <s> -E <E> -b <b> -t <tracefile>");
@@ -91,6 +95,9 @@ void printUsage()
   printf("%s\n\n", "-t <tracefile>: Name of the valgrind trace to replay.");
 }
 
+/**
+ * parseArgs gets all of the inputs using getopt and checks to see if they are valid
+ */
 bool parseArgs(int argc, char* argv[], int* s, int* E, int* b,
     char** t)
 {
@@ -148,7 +155,9 @@ bool parseArgs(int argc, char* argv[], int* s, int* E, int* b,
   return true;
 }
 
-
+/**
+ * initializes the cache struct fields and cache struct.
+ */
 void initCache(Cache* cache, int s, int E, int b)
 {
   cache->numSets = pow(2, s);
@@ -165,6 +174,9 @@ void initCache(Cache* cache, int s, int E, int b)
   }
 }
 
+/**
+ * Frees the space that the cache took up
+ */
 void deleteCache(Cache* cache)
 {
   for (int i = 0; i < cache->numSets; i++)
@@ -176,6 +188,10 @@ void deleteCache(Cache* cache)
   cache->tags = NULL;
 }
 
+/**
+ * The main simulation for the cache. This performs the operations that are found in
+ * the file pointer fp
+ */
 void simulateCache(Cache* cache, FILE* fp, int* hits, int* misses, int* evics)
 {
   char buff[BUFF_SIZE];
@@ -208,6 +224,7 @@ void simulateCache(Cache* cache, FILE* fp, int* hits, int* misses, int* evics)
     int i;
     bool found = false;
     tag* set = cache->tags[setBits];
+    // Try and find the tag
     for(i = 0; i < cache->linesPerSet; i++)
     {
       tag line = set[i];
@@ -223,6 +240,7 @@ void simulateCache(Cache* cache, FILE* fp, int* hits, int* misses, int* evics)
       }
     }
     
+    // If it is found(hit)
     if (found)
     {
       (*hits)++;
@@ -241,6 +259,7 @@ void simulateCache(Cache* cache, FILE* fp, int* hits, int* misses, int* evics)
       }
       set[0] = accessed;
     }
+    // Otherwise
     else
     {
       (*misses)++;
@@ -266,6 +285,7 @@ void simulateCache(Cache* cache, FILE* fp, int* hits, int* misses, int* evics)
       set[0] = tagBits;
     }
       
+    // If the operation is an 'M' 
     if (operation == 'M')
     {
       (*hits)++;
@@ -287,6 +307,9 @@ void simulateCache(Cache* cache, FILE* fp, int* hits, int* misses, int* evics)
   }
 }
 
+/**
+ * Return the bits between high and low of the source long passed.
+ */
 unsigned long getBits(int high, int low, unsigned long source)
 {
   if (high > 63 || high < 0 || low < 0 || low > 63 || low > high)

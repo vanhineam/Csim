@@ -1,6 +1,9 @@
 /*
  * trans.c - Matrix transpose B = A^T
  *
+ * Name: Adam Van Hine, Michael Crawford
+ * Username: vanhineam, crawfordmb
+ *
  * Each transpose function must have a prototype of the form:
  * void trans(int M, int N, int A[N][M], int B[M][N]);
  *
@@ -28,6 +31,7 @@ void transpose_submit(int M, int N, int A[N][M], int B[M][N])
     int Block = (M == 32) ? 8 : 4;
     int Block2 = 16;
 
+    // If it is square
     if(M == N)
     {
         for (k = 0; k < N; k+= Block) {
@@ -59,6 +63,7 @@ void transpose_submit(int M, int N, int A[N][M], int B[M][N])
             }
         }
     }
+    // If not square
     else
     {
         for(i = 0; i < N; i+=Block2)
